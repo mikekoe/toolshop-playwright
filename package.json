@@ -1,0 +1,36 @@
+{
+  "name": "toolshop-playwright",
+  "version": "1.0.0",
+  "description": "End-to-end test automation framework for an e-commerce we application. It is built with Playwright and TypeScript (UI, API and hybrid tests, Page Objects), typed fixtures and a CI pipeline on GiHub Actions",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mikekoe/toolshop-playwright.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mikekoe/toolshop-playwright/issues"
+  },
+  "homepage": "https://github.com/mikekoe/toolshop-playwright#readme",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.4",
+    "@typescript-eslint/parser": "^8.71.1",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-playwright": "^2.12.1",
+    "prettier": "^3.9.9",
+    "typescript-eslint": "^8.71.0"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  }
+}
