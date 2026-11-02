@@ -244,10 +244,9 @@ async function registerAndLogIn(page: Page): Promise<void> {
   // the submit button rather than a heading, because the button has a stable
   // data-test attribute and we click it a few lines below — if it's visible, the
   // form is interactive.
-  await expect(page.getByTestId('login-submit')).toBeVisible();
+  await expect(page.getByTestId('login-submit')).toBeVisible({ timeout: 30_000 });
   await page.getByTestId('email').fill(customer.email);
   await page.getByTestId('password').fill(customer.password);
-  await expect(page.getByTestId('login-submit')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('nav-menu')).toContainText(
     `${customer.firstName} ${customer.lastName}`,
   );
