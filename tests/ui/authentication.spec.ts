@@ -345,7 +345,7 @@ test.describe('Authentication', () => {
       await registerCustomer(page, customer);
       // Wait for the Login form to be ready (CI timing). The submit button is a
       // stable, data-test-anchored signal that the form is interactive.
-      await expect(page.getByTestId('login-submit')).toBeVisible();
+      await expect(page.getByTestId('login-submit')).toBeVisible({ timeout: 15_000 });
 
       // Act
       await logIn(page, customer.email, customer.password);

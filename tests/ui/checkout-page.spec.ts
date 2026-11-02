@@ -247,7 +247,7 @@ async function registerAndLogIn(page: Page): Promise<void> {
   await expect(page.getByTestId('login-submit')).toBeVisible();
   await page.getByTestId('email').fill(customer.email);
   await page.getByTestId('password').fill(customer.password);
-  await page.getByTestId('login-submit').click();
+  await expect(page.getByTestId('login-submit')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('nav-menu')).toContainText(
     `${customer.firstName} ${customer.lastName}`,
   );
