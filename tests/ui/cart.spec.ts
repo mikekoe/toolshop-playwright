@@ -5,18 +5,22 @@ interface ProductRef {
   productName: string;
 }
 
-const ECO_PRODUCT: ProductRef = { searchTerm: 'tool', productName: 'Leather toolbelt ECO' };
+// On the product list the name is "Leather toolbelt" and ECO is a separate badge
+const ECO_PRODUCT: ProductRef = { searchTerm: 'tool', productName: 'Leather toolbelt' };
+const STANDARD_PRODUCT: ProductRef = { searchTerm: 'plier', productName: 'Combination Pliers' };
 const BOLT_CUTTERS: ProductRef = { searchTerm: 'bolt', productName: 'Bolt Cutters' };
 const MINI_SCREWDRIVER: ProductRef = {
   searchTerm: 'screwdriver',
   productName: 'Mini Screwdriver',
 };
 
-/** Arrange helper: finds a product through search and adds it */
+/** Arrange helper: finds a product through search and adds it, waiting for the toast. */
 async function addProductToCart(page: Page, product: ProductRef, extraUnits = 0): Promise<void> {
   await page.goto('/');
+  await expect(page.getByTestId('product-name').first()).toBeVisible();
   await page.getByTestId('search-query').fill(product.searchTerm);
-  await page.getByTestId('search-query').press('Enter');
+  await page.getByTestId('search-submit').click();
+  await expect(page.getByText(`Searched for: ${product.searchTerm}`)).toBeVisible();
   await page.getByTestId('product-name').filter({ hasText: product.productName }).click();
   await expect(page).toHaveURL(/\/product\//);
   await expect(page.getByTestId('product-name')).toContainText(product.productName);
@@ -31,7 +35,6 @@ async function openCart(page: Page): Promise<void> {
   await page.getByTestId('nav-cart').click();
 }
 
-/** Turns "$61.16" or "-$18.35" into a positive number. Signs are ignored. */
 function parseMoney(text: string | null): number {
   return Number((text ?? '').replace(/[^0-9.]/g, ''));
 }
@@ -40,7 +43,6 @@ function sum(values: number[]): number {
   return values.reduce((total, value) => total + value, 0);
 }
 
-/** Money can differ by a cent through rounding, so allow a tiny tolerance. */
 function expectMoneyClose(actual: number, expected: number): void {
   expect(
     Math.abs(actual - expected),
@@ -53,7 +55,7 @@ test.describe('Cart', () => {
   test.describe('Adding items', () => {
     test('adds a product with quantity 3 and shows it in the cart @smoke', async ({ page }) => {
       // Arrange + Act: add the product, increasing the quantity twice (1 -> 3)
-      await addProductToCart(page, ECO_PRODUCT, 2);
+      await addProductToCart(page, STANDARD_PRODUCT, 2);
       await openCart(page);
 
       // Assert
@@ -65,7 +67,7 @@ test.describe('Cart', () => {
   test.describe('Changing items', () => {
     test('updates the quantity and the line price', async ({ page }) => {
       // Arrange: product in the cart, quantity 3
-      await addProductToCart(page, ECO_PRODUCT, 2);
+      await addProductToCart(page, STANDARD_PRODUCT, 2);
       await openCart(page);
       const quantity = page.getByTestId('product-quantity');
       await expect(quantity).toHaveValue('3');
@@ -78,7 +80,7 @@ test.describe('Cart', () => {
       // Assert: the quantity is kept and the line price follows it
       await expect(quantity).toHaveValue('6');
       await expect(async () => {
-      const linePrice = parseMoney(await page.getByTestId('line-price').textContent());
+        const linePrice = parseMoney(await page.getByTestId('line-price').textContent());
         expectMoneyClose(linePrice, unitPrice * 6);
       }).toPass();
     });
@@ -92,6 +94,7 @@ test.describe('Cart', () => {
 
       // Act
       await quantity.fill('');
+      await quantity.press('Tab');
 
       // Assert
       await expect(quantity).toHaveValue('1');
@@ -107,8 +110,9 @@ test.describe('Cart', () => {
       const boltRow = page.getByRole('row').filter({ hasText: 'Bolt Cutters' });
       await expect(screwdriverRow).toHaveCount(1);
 
-      // Act: VERIFY the row has a single button (the remove button)
-      await screwdriverRow.getByRole('button').click();
+      // Act: the remove control has no accessible name, so use its "btn" class.
+      // VERIFY there is only one .btn in the row.
+      await screwdriverRow.locator('.btn').click();
 
       // Assert
       await expect(screwdriverRow).toHaveCount(0);
@@ -117,7 +121,7 @@ test.describe('Cart', () => {
 
     test('continue shopping returns to the product list', async ({ page }) => {
       // Arrange
-      await addProductToCart(page, ECO_PRODUCT);
+      await addProductToCart(page, STANDARD_PRODUCT);
       await openCart(page);
 
       // Act
@@ -128,7 +132,7 @@ test.describe('Cart', () => {
     });
   });
 
-  // Flow 3: the cart shows how the price is calculated
+  // Flow 3: the cart shows how the price is built
   test.describe('Prices', () => {
     test('the line price equals unit price times quantity', async ({ page }) => {
       // Arrange
@@ -139,7 +143,7 @@ test.describe('Cart', () => {
       // Act: read the prices the page shows
       const unitPrice = parseMoney(await page.getByTestId('product-price').textContent());
 
-      // Assert: expected value is calculated
+      // Assert: expected value is calculated, never hard-coded
       await expect(async () => {
         const linePrice = parseMoney(await page.getByTestId('line-price').textContent());
         expectMoneyClose(linePrice, unitPrice * 3);
@@ -147,7 +151,7 @@ test.describe('Cart', () => {
     });
 
     test('the cart total equals the sum of the line prices', async ({ page }) => {
-      // Arrange: two non-ECO products (5% discount is not applied)
+      // Arrange: two non-ECO products (the recording showed no discount for these)
       await addProductToCart(page, BOLT_CUTTERS, 1);
       await addProductToCart(page, MINI_SCREWDRIVER);
       await openCart(page);
@@ -182,8 +186,8 @@ test.describe('Cart', () => {
       await addProductToCart(page, ECO_PRODUCT, 2);
       await openCart(page);
 
-      // Assert
-      // applies to the whole cart
+      // Assert. This is a HYPOTHESIS: if it fails, check by hand whether the discount
+      // applies to the whole cart or only to ECO lines BEFORE reporting a bug.
       await expect(async () => {
         const subtotal = parseMoney(await page.getByTestId('cart-subtotal').textContent());
         const discount = parseMoney(await page.getByTestId('cart-eco-discount').textContent());

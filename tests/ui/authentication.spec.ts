@@ -9,6 +9,9 @@ interface Customer {
   country: string;
   postalCode: string;
   houseNumber: string;
+  street: string;
+  city: string;
+  state: string;
   phone: string;
   email: string;
   password: string;
@@ -34,12 +37,63 @@ function uniqueId(): string {
   return `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 }
 
-/** Country codes confirmed to work in the registration form during exploration. */
-const COUNTRY_CODES = ['NG', 'AS', 'AD'];
-
 /** Keeps letters only, so punctuation in a generated name can never trip form validation. */
 function lettersOnly(value: string, fallback: string): string {
   return value.replace(/[^A-Za-z]/g, '') || fallback;
+}
+
+/**
+ * Country profiles the test generator picks from. Each profile keeps country, postal codes,
+ * cities and states consistent with each other, so a generated customer looks real.
+ * Only Nigeria is confirmed to pass registration validation today; add more profiles here
+ * once you verify them by hand.
+ */
+interface CountryProfile {
+  code: string;
+  postalCodes: string[];
+  cities: string[];
+  states: string[];
+}
+
+const COUNTRY_PROFILES: CountryProfile[] = [
+  {
+    code: 'NG',
+    postalCodes: ['100001', '101001', '102001', '830303'],
+    cities: ['Lagos', 'Ipaja', 'Ikeja', 'Ikorodu', 'Surulere', 'Yaba', 'Lekki', 'Victoria Island'],
+    states: ['Lagos'],
+  },
+];
+
+/** Picks one random profile, so every generated customer gets a different country mix. */
+function pickProfile(): CountryProfile {
+  return COUNTRY_PROFILES[randomInt(0, COUNTRY_PROFILES.length - 1)];
+}
+
+/** One random item from a list, typed to match the list's own type. */
+function pickFrom<T>(items: T[]): T {
+  return items[randomInt(0, items.length - 1)];
+}
+
+/** A whole number from min to max, both included. */
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/** A string of random digits, for example randomDigits(6) gives "480213". */
+function randomDigits(length: number): string {
+  let digits = '';
+  for (let i = 0; i < length; i++) {
+    digits += randomInt(0, 9);
+  }
+  return digits;
+}
+
+/** A date of birth that makes the customer between 22 and 65 years old, as YYYY-MM-DD. */
+function randomDateOfBirth(): string {
+  const year = new Date().getFullYear() - randomInt(22, 65);
+  const month = String(randomInt(1, 12)).padStart(2, '0');
+  const day = String(randomInt(1, 28)).padStart(2, '0'); // 28 is valid in every month
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -49,15 +103,18 @@ function lettersOnly(value: string, fallback: string): string {
 function newCustomer(overrides: Partial<Customer> = {}): Customer {
   const firstName = lettersOnly(faker.person.firstName(), 'Test');
   const lastName = lettersOnly(faker.person.lastName(), 'Customer');
+  const profile = pickProfile();
   return {
     firstName,
     lastName,
-    // 21 or older, which stays safely above any age limit whatever the time zone
-    dob: faker.date.birthdate({ min: 21, max: 65, mode: 'age' }).toISOString().slice(0, 10),
-    country: faker.helpers.arrayElement(COUNTRY_CODES),
-    postalCode: faker.string.numeric(6),
-    houseNumber: faker.string.numeric({ length: { min: 1, max: 3 }, allowLeadingZeros: false }),
-    phone: `0${faker.string.numeric(10)}`, // digits only: a leading "+" appears to be rejected
+    dob: randomDateOfBirth(),
+    country: profile.code,
+    postalCode: pickFrom(profile.postalCodes),
+    houseNumber: String(randomInt(1, 999)),
+    street: `${randomInt(1, 999)} Test Street`,
+    city: pickFrom(profile.cities),
+    state: pickFrom(profile.states),
+    phone: `0${randomDigits(10)}`, // digits only: a leading "+" appears to be rejected
     email: `${firstName}.${lastName}.${uniqueId()}@${EMAIL_DOMAIN}`.toLowerCase(),
     password: overrides.password ?? requireEnv('TEST_USER_PASSWORD'),
     ...overrides,
@@ -90,17 +147,99 @@ async function fillRegistrationForm(page: Page, c: Customer): Promise<void> {
   await page.getByTestId('country').selectOption(c.country);
   await page.getByTestId('postal_code').fill(c.postalCode);
   await page.getByTestId('house_number').fill(c.houseNumber);
+  await page.getByTestId('street').fill(c.street);
+  await page.getByTestId('city').fill(c.city);
+  await page.getByTestId('state').fill(c.state);
   await page.getByTestId('phone').fill(c.phone);
   await page.getByTestId('email').fill(c.email);
   await page.getByTestId('password').fill(c.password);
+}
+
+/**
+ * Explains why a form is refusing to submit: the messages it shows, which fields are invalid,
+ * and its visible text (without the long dropdown lists, which hide everything else).
+ */
+async function describeFormProblems(page: Page): Promise<string> {
+  const messages = (
+    await page
+      .locator('[data-test$="-error"], .alert, .invalid-feedback, .text-danger, [role="alert"]')
+      .allInnerTexts()
+  )
+    .map((message) => message.trim())
+    .filter(Boolean);
+
+  const form = page.locator('form').first();
+  const invalidFields = await form
+    .evaluate((el) =>
+      Array.from(el.querySelectorAll('.ng-invalid[data-test], :invalid'))
+        .map((node) => node.getAttribute('data-test') ?? node.tagName.toLowerCase())
+        .filter((name, index, all) => all.indexOf(name) === index),
+    )
+    .catch(() => [] as string[]);
+  const visibleText = await form
+    .evaluate((el) => {
+      const copy = el.cloneNode(true) as HTMLElement;
+      copy.querySelectorAll('select').forEach((node) => node.remove());
+      return (copy.textContent ?? '').replace(/\s+/g, ' ').trim();
+    })
+    .catch(() => '');
+  const submitDisabled = await page
+    .getByTestId('register-submit')
+    .isDisabled()
+    .catch(() => 'unknown');
+
+  return [
+    `Messages shown: ${messages.join(' | ') || 'none'}`,
+    `Invalid fields: ${invalidFields.join(', ') || 'none found'}`,
+    `Submit button disabled: ${submitDisabled}`,
+    `Form text without dropdowns: ${visibleText.slice(0, 500)}`,
+  ].join('\n');
+}
+
+/**
+ * Waits for the login page after the registration form is submitted. If the form refuses the
+ * data, the failure reports which requests were sent, what the form showed and the data used.
+ */
+async function expectRegistrationAccepted(
+  page: Page,
+  c: Customer,
+  requests: string[],
+): Promise<void> {
+  try {
+    await expect(page).toHaveURL(/\/auth\/login/);
+  } catch (error) {
+    throw new Error(
+      `Registration was not accepted.\n` +
+        `Requests sent: ${requests.join(' || ') || 'none (the form sent nothing)'}\n` +
+        `${await describeFormProblems(page)}\n` +
+        `Data used: ${JSON.stringify({ ...c, password: '<hidden>' })}`,
+      { cause: error },
+    );
+  }
+}
+
+/** Submits the registration form and waits for the login page. */
+async function submitRegistration(page: Page, c: Customer): Promise<void> {
+  const requests: string[] = [];
+  page.on('response', async (response) => {
+    // Ignore the site's own analytics beacons (/cdn-cgi/), which are not the registration
+    if (response.request().method() === 'POST' && !response.url().includes('/cdn-cgi/')) {
+      const body = await response.text().catch(() => '');
+      requests.push(`${response.status()} ${response.url()} ${body.slice(0, 300)}`);
+    }
+  });
+  // Leave the last field first. The form validates on blur, which can move the button and
+  // swallow the click (your recordings needed a second click for this reason).
+  await page.getByTestId('password').blur();
+  await page.getByTestId('register-submit').click();
+  await expectRegistrationAccepted(page, c, requests);
 }
 
 /** Registers through the UI and waits for the redirect to the login page. */
 async function registerCustomer(page: Page, c: Customer): Promise<void> {
   await openRegistrationForm(page);
   await fillRegistrationForm(page, c);
-  await page.getByTestId('register-submit').click();
-  await expect(page).toHaveURL(/\/auth\/login/);
+  await submitRegistration(page, c);
 }
 
 async function logIn(page: Page, email: string, password: string): Promise<void> {
@@ -130,7 +269,7 @@ test.describe('Authentication', () => {
     });
 
     test('the Google button opens a Google sign-in window @external', async ({ page }) => {
-      // Arrange: This depends on Google being reachable
+      // Arrange: depends on Google being reachable, so tag @external and keep out of smoke runs
       await page.goto('/auth/login');
       const popupPromise = page.waitForEvent('popup');
 
@@ -156,7 +295,7 @@ test.describe('Authentication', () => {
 
     test('registration with an invalid phone number is rejected', async ({ page }) => {
       // Arrange: a "+" in the phone number appears to be rejected (confirm by hand)
-      const customer = newCustomer({ phone: `+${faker.string.numeric(10)}` });
+      const customer = newCustomer({ phone: `+${randomDigits(10)}` });
       await openRegistrationForm(page);
       await fillRegistrationForm(page, customer);
 
@@ -168,7 +307,7 @@ test.describe('Authentication', () => {
     });
 
     test('a password without an upper-case letter is rejected', async ({ page }) => {
-      // Arrange: the site appears to reject a password with no upper-case letter 
+      // Arrange: inferred from your recording, where adding capitals fixed the password
       const customer = newCustomer({ password: passwordWithoutUpperCase() });
       await openRegistrationForm(page);
       await fillRegistrationForm(page, customer);
@@ -182,7 +321,7 @@ test.describe('Authentication', () => {
 
     test('registering an email that is already in use is rejected', async ({ page }) => {
       // Arrange: register a customer, then try the same email again.
-     
+      // SUSPECTED DEFECT #1: if this fails, repeat it by hand before reporting a bug.
       const first = newCustomer();
       await registerCustomer(page, first);
       const second = newCustomer({ email: first.email });
@@ -201,7 +340,7 @@ test.describe('Authentication', () => {
   test.describe('Login', () => {
     test('a registered customer can log in and sees their name @smoke', async ({ page }) => {
       // Arrange: register through the UI.
-
+      // Week 3 idea: create the customer through the API instead, which is faster.
       const customer = newCustomer();
       await registerCustomer(page, customer);
 

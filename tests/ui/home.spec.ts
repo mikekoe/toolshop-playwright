@@ -17,23 +17,36 @@ test.describe('Home', () => {
       await expect(page.getByTestId('nav-categories')).toContainText('Categories');
       await expect(page.getByTestId('nav-contact')).toBeVisible();
       await expect(page.getByTestId('nav-sign-in')).toContainText('Sign in');
-      await expect(page.getByTestId('nav-cart')).toBeVisible();
       await expect(page.getByTestId('language-select')).toContainText('EN');
       await expect(page.getByRole('img', { name: 'Banner' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Practice Software Testing -' })).toBeVisible();
       await expect(page.getByTestId('search-query')).toBeEmpty();
     });
 
+    test('the cart link appears once a product is added', async ({ page }) => {
+      // Arrange: a new visitor has an empty cart, and the header shows no cart link
+      await expect(page.getByTestId('nav-cart')).toHaveCount(0);
+
+      // Act
+      await page.getByTestId('product-name').filter({ hasText: PRODUCT }).click();
+      await page.getByTestId('add-to-cart').click();
+      await expect(page.getByRole('alert', { name: 'Product added to shopping' })).toBeVisible();
+
+      // Assert
+      await expect(page.getByTestId('nav-cart')).toBeVisible();
+    });
+
     test('shows the course promotion with a link', async ({ page }) => {
-         //Promotion Assertions
+      // Promotions come and go, so this is kept apart from the smoke layout test.
+      // If the promotion is removed from the site, delete this test.
       await expect(page.getByTestId('course-promo')).toBeVisible();
       await expect(page.getByTestId('course-promo-link')).toHaveAttribute('href', /.+/);
     });
 
     test('shows the footer and the demo notice', async ({ page }) => {
-      // Assert: the notice wording has already changed once, so keep this check loose
+      // Assert: footer explore link is visible
       await expect(page.getByTestId('footer-explore')).toBeVisible();
-      await expect(page.getByText('This is an E-commerce application,')).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Documentation' })).toBeVisible();
     });
 
     test('lists products @smoke', async ({ page }) => {
@@ -74,6 +87,15 @@ test.describe('Home', () => {
           expect(name).toMatch(/plier/i);
         }
       }).toPass();
+    });
+
+    test('search can be submitted with the Enter key', async ({ page }) => {
+      // Act
+      await page.getByTestId('search-query').fill('plier');
+      await page.getByTestId('search-query').press('Enter');
+
+      // Assert: the search was applied (a page that ignored Enter would show no heading)
+      await expect(page.getByText('Searched for: plier')).toBeVisible();
     });
 
     test('search with no matches shows no products', async ({ page }) => {

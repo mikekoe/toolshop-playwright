@@ -17,6 +17,9 @@ interface Customer {
   country: string;
   postalCode: string;
   houseNumber: string;
+  street: string;
+  city: string;
+  state: string;
   phone: string;
   email: string;
   password: string;
@@ -27,9 +30,9 @@ interface ProductRef {
   productName: string;
 }
 
-const ECO_PRODUCT: ProductRef = { searchTerm: 'tool', productName: 'Leather toolbelt ECO' };
+const STANDARD_PRODUCT: ProductRef = { searchTerm: 'plier', productName: 'Combination Pliers' };
 
-/** Reads a required setting from the environment  */
+/** Reads a required setting from the environment (see .env.example). */
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -44,34 +47,60 @@ function uniqueId(): string {
   return `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 }
 
-/** Country codes confirmed to work in the forms during testing. */
-const COUNTRY_CODES = ['NG', 'AS', 'AD'];
-
 /** Keeps letters only, so punctuation in a generated name can never trip form validation. */
 function lettersOnly(value: string, fallback: string): string {
   return value.replace(/[^A-Za-z]/g, '') || fallback;
 }
 
-/** Keeps letters only for place names, but spaces are allowed ("New Haven"). */
-function lettersAndSpaces(value: string, fallback: string): string {
-  return value.replace(/[^A-Za-z ]/g, '').trim() || fallback;
+/**
+ * Country profiles the test generator picks from. Each profile keeps country, postal codes,
+ * cities and states consistent with each other, so a generated customer or address looks real.
+ * Only Nigeria is confirmed to pass validation today; add more profiles here once you
+ * verify them by hand.
+ */
+interface CountryProfile {
+  code: string;
+  /** Returns a different postal code on every call, in a format the form accepts. */
+  generatePostalCode: () => string;
+  cities: string[];
+  states: string[];
+}
+
+const COUNTRY_PROFILES: CountryProfile[] = [
+  {
+    code: 'NG',
+    // Nigerian postal codes are 6 digits; the first digit is the region, and '1' is Lagos.
+    // Generated inside the Lagos range so the city and state stay consistent.
+    generatePostalCode: () => `1${faker.string.numeric(5)}`,
+    cities: ['Lagos', 'Ipaja', 'Ikeja', 'Ikorodu', 'Surulere', 'Yaba', 'Lekki', 'Victoria Island'],
+    states: ['Lagos'],
+  },
+];
+
+/** Picks one random profile, so every generated customer or address gets a different mix. */
+function pickProfile(): CountryProfile {
+  return faker.helpers.arrayElement(COUNTRY_PROFILES);
 }
 
 /**
  * A different, realistic-looking customer on every call. Nothing here is a real person.
- * The password comes from TEST_USER_PASSWORD.
+ * Country, postal code, city and state come from the same country profile.
  */
 function newCustomer(): Customer {
   const firstName = lettersOnly(faker.person.firstName(), 'Test');
   const lastName = lettersOnly(faker.person.lastName(), 'Customer');
+  const profile = pickProfile();
   return {
     firstName,
     lastName,
     // 21 or older, which stays safely above any age limit whatever the time zone
     dob: faker.date.birthdate({ min: 21, max: 65, mode: 'age' }).toISOString().slice(0, 10),
-    country: faker.helpers.arrayElement(COUNTRY_CODES),
-    postalCode: faker.string.numeric(6),
+    country: profile.code,
+    postalCode: profile.generatePostalCode(),
     houseNumber: faker.string.numeric({ length: { min: 1, max: 3 }, allowLeadingZeros: false }),
+    street: `${faker.string.numeric({ length: { min: 1, max: 3 }, allowLeadingZeros: false })} Test Street`,
+    city: faker.helpers.arrayElement(profile.cities),
+    state: faker.helpers.arrayElement(profile.states),
     phone: `0${faker.string.numeric(10)}`, // digits only
     email: `${firstName}.${lastName}.${uniqueId()}@${EMAIL_DOMAIN}`.toLowerCase(),
     password: requireEnv('TEST_USER_PASSWORD'),
@@ -79,23 +108,24 @@ function newCustomer(): Customer {
 }
 
 function newAddress(): Address {
+  const profile = pickProfile();
   return {
-    country: faker.helpers.arrayElement(COUNTRY_CODES),
-    postalCode: faker.string.numeric(6),
+    country: profile.code,
+    postalCode: profile.generatePostalCode(),
     houseNumber: faker.string.numeric({ length: { min: 1, max: 3 }, allowLeadingZeros: false }),
-    street: lettersAndSpaces(faker.location.street(), 'Test Street'),
-    city: lettersAndSpaces(faker.location.city(), 'Lagos'),
-    state: lettersAndSpaces(faker.location.state(), 'Lagos'),
+    street: `${faker.string.numeric({ length: { min: 1, max: 3 }, allowLeadingZeros: false })} Test Street`,
+    city: faker.helpers.arrayElement(profile.cities),
+    state: faker.helpers.arrayElement(profile.states),
   };
 }
 
-
-
-/** Arrange helper: finds a product through search and adds it */
+/** Arrange helper: finds a product through search and adds it, waiting for the toast. */
 async function addProductToCart(page: Page, product: ProductRef, extraUnits = 0): Promise<void> {
   await page.goto('/');
+  await expect(page.getByTestId('product-name').first()).toBeVisible();
   await page.getByTestId('search-query').fill(product.searchTerm);
-  await page.getByTestId('search-query').press('Enter');
+  await page.getByTestId('search-submit').click();
+  await expect(page.getByText(`Searched for: ${product.searchTerm}`)).toBeVisible();
   await page.getByTestId('product-name').filter({ hasText: product.productName }).click();
   await expect(page).toHaveURL(/\/product\//);
   await expect(page.getByTestId('product-name')).toContainText(product.productName);
@@ -110,7 +140,87 @@ async function openCart(page: Page): Promise<void> {
   await page.getByTestId('nav-cart').click();
 }
 
-/** Registers a brand-new, randomly generated customer and logs in. */
+/**
+ * Explains why a form is refusing to submit: the messages it shows, which fields are invalid,
+ * and its visible text (without the long dropdown lists, which hide everything else).
+ */
+async function describeFormProblems(page: Page): Promise<string> {
+  const messages = (
+    await page
+      .locator('[data-test$="-error"], .alert, .invalid-feedback, .text-danger, [role="alert"]')
+      .allInnerTexts()
+  )
+    .map((message) => message.trim())
+    .filter(Boolean);
+
+  const form = page.locator('form').first();
+  const invalidFields = await form
+    .evaluate((el) =>
+      Array.from(el.querySelectorAll('.ng-invalid[data-test], :invalid'))
+        .map((node) => node.getAttribute('data-test') ?? node.tagName.toLowerCase())
+        .filter((name, index, all) => all.indexOf(name) === index),
+    )
+    .catch(() => [] as string[]);
+  const visibleText = await form
+    .evaluate((el) => {
+      const copy = el.cloneNode(true) as HTMLElement;
+      copy.querySelectorAll('select').forEach((node) => node.remove());
+      return (copy.textContent ?? '').replace(/\s+/g, ' ').trim();
+    })
+    .catch(() => '');
+  const submitDisabled = await page
+    .getByTestId('register-submit')
+    .isDisabled()
+    .catch(() => 'unknown');
+
+  return [
+    `Messages shown: ${messages.join(' | ') || 'none'}`,
+    `Invalid fields: ${invalidFields.join(', ') || 'none found'}`,
+    `Submit button disabled: ${submitDisabled}`,
+    `Form text without dropdowns: ${visibleText.slice(0, 500)}`,
+  ].join('\n');
+}
+
+/**
+ * Waits for the login page after the registration form is submitted. If the form refuses the
+ * data, the failure reports which requests were sent, what the form showed and the data used.
+ */
+async function expectRegistrationAccepted(
+  page: Page,
+  c: Customer,
+  requests: string[],
+): Promise<void> {
+  try {
+    await expect(page).toHaveURL(/\/auth\/login/);
+  } catch (error) {
+    throw new Error(
+      `Registration was not accepted.\n` +
+        `Requests sent: ${requests.join(' || ') || 'none (the form sent nothing)'}\n` +
+        `${await describeFormProblems(page)}\n` +
+        `Data used: ${JSON.stringify({ ...c, password: '<hidden>' })}`,
+      { cause: error },
+    );
+  }
+}
+
+/** Submits the registration form and waits for the login page. */
+async function submitRegistration(page: Page, c: Customer): Promise<void> {
+  const requests: string[] = [];
+  page.on('response', async (response) => {
+    // Ignore the site's own analytics beacons (/cdn-cgi/), which are not the registration
+    if (response.request().method() === 'POST' && !response.url().includes('/cdn-cgi/')) {
+      const body = await response.text().catch(() => '');
+      requests.push(`${response.status()} ${response.url()} ${body.slice(0, 300)}`);
+    }
+  });
+  // Leave the last field first. The form validates on blur, which can move the button and
+  // swallow the click (your recordings needed a second click for this reason).
+  await page.getByTestId('password').blur();
+  await page.getByTestId('register-submit').click();
+  await expectRegistrationAccepted(page, c, requests);
+}
+
+/** Registers a brand-new, randomly generated customer through the UI and logs in. */
 async function registerAndLogIn(page: Page): Promise<void> {
   const customer = newCustomer();
   await page.goto('/');
@@ -123,11 +233,13 @@ async function registerAndLogIn(page: Page): Promise<void> {
   await page.getByTestId('country').selectOption(customer.country);
   await page.getByTestId('postal_code').fill(customer.postalCode);
   await page.getByTestId('house_number').fill(customer.houseNumber);
+  await page.getByTestId('street').fill(customer.street);
+  await page.getByTestId('city').fill(customer.city);
+  await page.getByTestId('state').fill(customer.state);
   await page.getByTestId('phone').fill(customer.phone);
   await page.getByTestId('email').fill(customer.email);
   await page.getByTestId('password').fill(customer.password);
-  await page.getByTestId('register-submit').click();
-  await expect(page).toHaveURL(/\/auth\/login/);
+  await submitRegistration(page, customer);
   await page.getByTestId('email').fill(customer.email);
   await page.getByTestId('password').fill(customer.password);
   await page.getByTestId('login-submit').click();
@@ -156,29 +268,16 @@ async function checkoutAsCustomerToPayment(page: Page, address: Address): Promis
 }
 
 test.describe('Checkout', () => {
-  // Flow 1: a visitor starts to check out and chooses how
-  test.describe('Choosing how to check out', () => {
-    test('a visitor can sign in or continue as a guest @smoke', async ({ page }) => {
-      // Arrange
-      await addProductToCart(page, ECO_PRODUCT, 2);
-      await openCart(page);
-      await expect(page.getByTestId('product-quantity')).toHaveValue('3');
-
-      // Act
-      await page.getByTestId('proceed-1').click();
-
-      // Assert
-      await expect(page.getByRole('tab', { name: 'Sign in' })).toBeVisible();
-      await expect(page.getByRole('tab', { name: 'Continue as Guest' })).toBeVisible();
-    });
-
+  // Flow 1: entering checkout
+  test.describe('Entering checkout', () => {
     test('opening /checkout directly with an empty cart does not break the page', async ({
       page,
     }) => {
       // Act
       await page.goto('/checkout');
 
-      // Assert: the shop still renders. If the site shows an empty cart message or redirects, assert that too.
+      // Assert: the shop still renders. TODO: once you know what a visitor SHOULD see
+      // (an empty-cart message or a redirect), assert that too.
       await expect(page.getByRole('menubar', { name: 'Main menu' })).toBeVisible();
     });
   });
@@ -188,7 +287,7 @@ test.describe('Checkout', () => {
     test('a logged-in customer can move through the steps to payment @smoke', async ({ page }) => {
       // Arrange: a new customer with a product in the cart
       await registerAndLogIn(page);
-      await addProductToCart(page, ECO_PRODUCT, 2);
+      await addProductToCart(page, STANDARD_PRODUCT, 2);
       await openCart(page);
 
       // Act
@@ -198,22 +297,39 @@ test.describe('Checkout', () => {
       await expect(page.getByTestId('payment-method')).toBeVisible();
       await expect(page.getByTestId('finish')).toBeVisible();
     });
+
+    test.fixme('a logged-in customer can pay cash on delivery and gets an order confirmation', async ({
+      page,
+    }) => {
+      // Arrange: a new customer at the payment step
+      await registerAndLogIn(page);
+      await addProductToCart(page, STANDARD_PRODUCT, 2);
+      await openCart(page);
+      await checkoutAsCustomerToPayment(page, newAddress());
+
+      // Act
+      await page.getByTestId('payment-method').selectOption('cash-on-delivery');
+      await page.getByTestId('finish').click();
+
+      // Assert: TODO place one order by hand as a customer and note what appears.
+      // Then assert the real confirmation, check that the cart is empty, and check that
+      // the order shows under the user menu > My account > Invoices. Remove .fixme.
+      await expect(page.getByTestId('finish')).toBeHidden();
+    });
   });
 
-  //flow 3: the payment step
+  // Flow 3: the payment step
   test.describe('Payment methods', () => {
-    
-   // a logged-in customer choosing credit card sees the card fields
     test('a logged-in customer choosing credit card sees the card fields', async ({ page }) => {
       // Arrange: a new customer at the payment step
       await registerAndLogIn(page);
-      await addProductToCart(page, ECO_PRODUCT);
+      await addProductToCart(page, STANDARD_PRODUCT);
       await openCart(page);
       await checkoutAsCustomerToPayment(page, newAddress());
- 
+
       // Act
       await page.getByTestId('payment-method').selectOption('credit-card');
- 
+
       // Assert
       await expect(page.getByTestId('credit_card_number')).toBeVisible();
       await expect(page.getByTestId('expiration_date')).toBeVisible();

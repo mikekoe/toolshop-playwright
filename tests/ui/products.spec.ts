@@ -13,15 +13,19 @@ const PRODUCTS: ProductRef[] = [
   { searchTerm: 'screwdriver', productName: 'Mini Screwdriver' },
 ];
 
-const ECO_PRODUCT: ProductRef = { searchTerm: 'tool', productName: 'Leather toolbelt ECO' };
+// On the product list the name is "Leather toolbelt" and ECO is a separate badge
+const ECO_PRODUCT: ProductRef = { searchTerm: 'tool', productName: 'Leather toolbelt' };
+const STANDARD_PRODUCT = PRODUCTS[0]; // Combination Pliers
 const NON_ECO_PRODUCT = PRODUCTS[1]; // Bolt Cutters
 const SPECS_PRODUCT = PRODUCTS[2]; // Mini Screwdriver
 
 /** Arrange helper: finds a product through search and opens its page. */
 async function openProduct(page: Page, product: ProductRef): Promise<void> {
   await page.goto('/');
+  await expect(page.getByTestId('product-name').first()).toBeVisible();
   await page.getByTestId('search-query').fill(product.searchTerm);
-  await page.getByTestId('search-query').press('Enter');
+  await page.getByTestId('search-submit').click();
+  await expect(page.getByText(`Searched for: ${product.searchTerm}`)).toBeVisible();
   await page.getByTestId('product-name').filter({ hasText: product.productName }).click();
   await expect(page).toHaveURL(/\/product\//);
   await expect(page.getByTestId('product-name')).toContainText(product.productName);
@@ -79,7 +83,7 @@ test.describe('Products', () => {
   test.describe('Adding to the cart', () => {
     test('shows a confirmation when the product is added @smoke', async ({ page }) => {
       // Arrange
-      await openProduct(page, ECO_PRODUCT);
+      await openProduct(page, STANDARD_PRODUCT);
 
       // Act
       await page.getByTestId('add-to-cart').click();
