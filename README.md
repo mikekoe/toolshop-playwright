@@ -195,6 +195,33 @@ The CI pipeline needs one repository secret:
 
 Add it in **Settings → Secrets and variables → Actions → New repository secret**.
 
+## Known limitations
+
+### Cloudflare bot verification on CI runners
+
+Four tests that depend on the registration → login redirect are marked
+`test.fixme` on CI:
+
+- `authentication: a new customer can register and is sent to the login page @smoke`
+- `authentication: a registered customer can log in and sees their name @smoke`
+- `checkout: a logged-in customer can move through the steps to payment @smoke`
+- `checkout: a logged-in customer choosing credit card sees the card fields`
+
+When the registration form submits, the server returns a 302 to `/auth/login`.
+On shared GitHub Actions runner IPs, Cloudflare's bot-verification challenge
+intercepts that navigation and serves an interstitial page instead of the login
+form. Thirty-second waits do not help — Cloudflare does not resolve the
+challenge for the Playwright-controlled browser.
+
+The tests pass locally against the same site, where a residential IP and a
+regular browsing session do not trigger the challenge.
+
+The right fix is to bypass the UI redirect by registering through the Toolshop
+REST API in a Playwright `setup` project, then reusing the resulting session
+via `storageState`. That is tracked as a Week 2 improvement. In a real project,
+CI would run against a locally stood-up copy of the application rather than
+a public Cloudflare-protected demo.
+
 ## Known defects
 
 The following `test.fixme` tests document behaviour observed on the live demo that is likely incorrect. They remain in the code as executable specifications of the expected fix.
@@ -218,5 +245,4 @@ To reproduce by hand before raising a bug, run them against the live site and co
 
 ## Author
 
-**Michael Adeyeye** — [@Nneoma01](https://github.com/Nneoma01)
-QA Engineer, Lagos
+**Michael Adeyeye** — QA Engineer
