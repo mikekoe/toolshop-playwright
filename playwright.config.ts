@@ -38,13 +38,13 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-   { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  ...(process.env.CROSS_BROWSER
-    ? [
-        { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-        { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-      ]
-  : []),
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    ...(process.env.CROSS_BROWSER
+      ? [
+          { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+          { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+        ]
+      : []),
 
     /* Test against mobile viewports. */
     // {
