@@ -343,6 +343,9 @@ test.describe('Authentication', () => {
       // Week 3 idea: create the customer through the API instead, which is faster.
       const customer = newCustomer();
       await registerCustomer(page, customer);
+      // Wait for the Login page itself before filling it (CI timing).
+      await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
+      await expect(page.getByTestId('email')).toBeVisible();
 
       // Act
       await logIn(page, customer.email, customer.password);
