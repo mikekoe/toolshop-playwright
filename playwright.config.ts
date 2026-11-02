@@ -32,7 +32,7 @@ export default defineConfig({
   expect: {
     timeout: 10_000,
   },
-  
+
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
     baseURL: 'https://practicesoftwaretesting.com',
