@@ -16,15 +16,15 @@ A portfolio project that exercises a public e-commerce demo across its main user
 
 ## Tech stack
 
-| Area | Tool |
-|---|---|
-| Test runner | [Playwright](https://playwright.dev/) |
-| Language | TypeScript (strict mode) |
-| Test data | [faker-js](https://fakerjs.dev/) |
+| Area           | Tool                                         |
+| -------------- | -------------------------------------------- |
+| Test runner    | [Playwright](https://playwright.dev/)        |
+| Language       | TypeScript (strict mode)                     |
+| Test data      | [faker-js](https://fakerjs.dev/)             |
 | Env management | [dotenv](https://github.com/motdotla/dotenv) |
-| Linting | ESLint |
-| Formatting | Prettier |
-| CI | GitHub Actions |
+| Linting        | ESLint                                       |
+| Formatting     | Prettier                                     |
+| CI             | GitHub Actions                               |
 
 ## Prerequisites
 
@@ -34,6 +34,7 @@ A portfolio project that exercises a public e-commerce demo across its main user
 ## Setup
 
 1. **Clone and install**
+
    ```bash
    git clone https://github.com/Nneoma01/toolshop-playwright.git
    cd toolshop-playwright
@@ -41,16 +42,19 @@ A portfolio project that exercises a public e-commerce demo across its main user
    ```
 
 2. **Install Playwright browsers**
+
    ```bash
    npx playwright install --with-deps
    ```
 
 3. **Create a local `.env`** from the template
+
    ```bash
    cp .env.example .env
    ```
 
    Generate a throwaway password and paste it after `TEST_USER_PASSWORD=` (no quotes, no spaces around `=`):
+
    ```bash
    node -e 'console.log("Aa1@" + require("crypto").randomBytes(8).toString("hex"))'
    ```
@@ -66,16 +70,16 @@ A portfolio project that exercises a public e-commerce demo across its main user
 
 ## Running tests
 
-| Command | Purpose |
-|---|---|
-| `npm test` | Full suite on Chromium |
-| `npx playwright test tests/ui/home.spec.ts` | One spec file |
-| `npx playwright test --grep @smoke` | Smoke subset only |
-| `npx playwright test --last-failed` | Only the tests that failed last time |
-| `npx playwright test --ui` | Playwright's visual runner (recommended for development) |
-| `npx playwright test --debug` | Headed, step-through debugger |
-| `CROSS_BROWSER=1 npx playwright test` | Also run on Firefox and WebKit |
-| `npx playwright show-report` | Open the HTML report in a browser |
+| Command                                     | Purpose                                                  |
+| ------------------------------------------- | -------------------------------------------------------- |
+| `npm test`                                  | Full suite on Chromium                                   |
+| `npx playwright test tests/ui/home.spec.ts` | One spec file                                            |
+| `npx playwright test --grep @smoke`         | Smoke subset only                                        |
+| `npx playwright test --last-failed`         | Only the tests that failed last time                     |
+| `npx playwright test --ui`                  | Playwright's visual runner (recommended for development) |
+| `npx playwright test --debug`               | Headed, step-through debugger                            |
+| `CROSS_BROWSER=1 npx playwright test`       | Also run on Firefox and WebKit                           |
+| `npx playwright show-report`                | Open the HTML report in a browser                        |
 
 ## Project structure
 
@@ -140,10 +144,10 @@ A single error line turns a 30-second "something failed" into a precise "City is
 
 ### Env vars for anything sensitive or environment-specific
 
-| Variable | Purpose | Required |
-|---|---|---|
-| `TEST_USER_PASSWORD` | Password for throwaway registered customers | Yes |
-| `TEST_EMAIL_DOMAIN` | Domain for generated email addresses | No, defaults to `example.com` |
+| Variable             | Purpose                                     | Required                      |
+| -------------------- | ------------------------------------------- | ----------------------------- |
+| `TEST_USER_PASSWORD` | Password for throwaway registered customers | Yes                           |
+| `TEST_EMAIL_DOMAIN`  | Domain for generated email addresses        | No, defaults to `example.com` |
 
 Local: read from `.env`. CI: read from GitHub Actions secrets.
 
@@ -195,21 +199,21 @@ Add it in **Settings → Secrets and variables → Actions → New repository se
 
 The following `test.fixme` tests document behaviour observed on the live demo that is likely incorrect. They remain in the code as executable specifications of the expected fix.
 
-| Test | Observed behaviour |
-|---|---|
-| `authentication: requesting a reset shows a confirmation` | The Forgot Password submit button appeared to need two clicks |
-| `checkout: a guest/customer can pay cash on delivery` (two tests) | After clicking Finish, the cart stays full and the Finish button stays visible — the order appears not to have been placed |
-| `contact: a valid message is sent / with an attachment` (two tests) | No confirmation is shown after submit |
+| Test                                                                | Observed behaviour                                                                                                         |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `authentication: requesting a reset shows a confirmation`           | The Forgot Password submit button appeared to need two clicks                                                              |
+| `checkout: a guest/customer can pay cash on delivery` (two tests)   | After clicking Finish, the cart stays full and the Finish button stays visible — the order appears not to have been placed |
+| `contact: a valid message is sent / with an attachment` (two tests) | No confirmation is shown after submit                                                                                      |
 
 To reproduce by hand before raising a bug, run them against the live site and compare with the test's assertion.
 
 ## npm scripts
 
-| Script | Purpose |
-|---|---|
-| `npm test` | Run the full Playwright suite |
-| `npm run lint` | ESLint |
-| `npm run format` | Rewrite files with Prettier |
+| Script                 | Purpose                                   |
+| ---------------------- | ----------------------------------------- |
+| `npm test`             | Run the full Playwright suite             |
+| `npm run lint`         | ESLint                                    |
+| `npm run format`       | Rewrite files with Prettier               |
 | `npm run format:check` | Fail if any file isn't Prettier-formatted |
 
 ## Author
