@@ -240,11 +240,11 @@ async function registerAndLogIn(page: Page): Promise<void> {
   await page.getByTestId('email').fill(customer.email);
   await page.getByTestId('password').fill(customer.password);
   await submitRegistration(page, customer);
-  // Wait for the Login page to actually finish rendering before touching its form.
-  // In CI's slower runner the URL changes before the inputs are mounted, which caused a
-  // 30s timeout on `getByTestId('email').fill(...)` below.
-  await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
-  await expect(page.getByTestId('email')).toBeVisible();
+  // Wait for the login form to actually be ready before touching it. We wait for
+  // the submit button rather than a heading, because the button has a stable
+  // data-test attribute and we click it a few lines below — if it's visible, the
+  // form is interactive.
+  await expect(page.getByTestId('login-submit')).toBeVisible();
   await page.getByTestId('email').fill(customer.email);
   await page.getByTestId('password').fill(customer.password);
   await page.getByTestId('login-submit').click();

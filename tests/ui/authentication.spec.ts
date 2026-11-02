@@ -290,7 +290,7 @@ test.describe('Authentication', () => {
 
       // Act + Assert: the helper submits the form and waits for the login redirect
       await registerCustomer(page, customer);
-      await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
+      await expect(page.getByTestId('login-submit')).toBeVisible();
     });
 
     test('registration with an invalid phone number is rejected', async ({ page }) => {
@@ -343,9 +343,9 @@ test.describe('Authentication', () => {
       // Week 3 idea: create the customer through the API instead, which is faster.
       const customer = newCustomer();
       await registerCustomer(page, customer);
-      // Wait for the Login page itself before filling it (CI timing).
-      await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
-      await expect(page.getByTestId('email')).toBeVisible();
+      // Wait for the Login form to be ready (CI timing). The submit button is a
+      // stable, data-test-anchored signal that the form is interactive.
+      await expect(page.getByTestId('login-submit')).toBeVisible();
 
       // Act
       await logIn(page, customer.email, customer.password);
