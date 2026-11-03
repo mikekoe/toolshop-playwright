@@ -1,3 +1,5 @@
+![CI](https://github.com/Nneoma01/toolshop-playwright/actions/workflows/playwright.yml/badge.svg)
+
 # Toolshop Playwright Suite
 
 End-to-end tests for [practicesoftwaretesting.com](https://practicesoftwaretesting.com) (the "Toolshop" demo), written in **TypeScript** with **Playwright**.
