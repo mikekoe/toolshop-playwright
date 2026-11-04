@@ -10,6 +10,8 @@ Host: https://api.practicesoftwaretesting.com
 - 200: current user profile is successfully retrieved
 - 401: `{"message":"Unauthorized"}` (missing or invalid token)
 
+## Authentication
+
 ### POST /users/login
 
 - Body: `{"email": string,"password": string}`
@@ -27,13 +29,31 @@ interface LoginResponse {
 - 401: `{"error":"Unauthorized"}`
 - Response headers: `{Vary: Accept-Encoding, Cache-Control: no-cache, private, Content-Type: application/json, Content-Encoding: gzip}`
 
+## POST /users/register — register a new customer
+
+- Public, no auth
+- `{201}`: Successful authentication
+- Request body:
+
+```ts
+interface RegisterRequest {
+  first_name: string;
+  last_name: string;
+  dob: string;
+  email: string;
+  password: string;
+  phone: string;
+  address: Address;
+}
+```
+
+## Catalogue
+
 ### GET /products - Product catalogue
 
 - Public, no auth required
 - 200: Laravel pagination:
   `{current_page, last_page, per_page, from, to, total, data: Product[]}`
-
-### Products
 
 ```ts
 interface Product {
@@ -64,6 +84,21 @@ interface ProductImage {
 }
 ```
 
+### GET /brands
+
+- Public, no authentication
+- 200: Successfully retrieved data
+
+```ts
+type BrandListResponse = Brand[];
+
+interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+}
+```
+
 ### Checkout Address
 
 ### GET /postcode-lookup?country=<CODE>&postcode=<CODE>&house_number=<N>
@@ -82,25 +117,12 @@ interface PostcodeLookupResponse {
 }
 ```
 
-### GET /brands
-
-- Public, no authentication
-- 200: Successfully retrieved data
-
-```ts
-type BrandListResponse = Brand[];
-
-interface Brand {
-  id: string;
-  name: string;
-  slug: string;
-}
-```
-
 Cacheable: `{cache-control: max-age=120, public}`, response includes an `{e-tag}`
 There are two brands there (ForgeFlex Tools, MightyCraft Hardware).
 
-## POST /carts - create a new cart
+## Cart
+
+### POST /carts - create a new cart
 
 - Can be called with or without authentication
 - `{201 Created}` - returns the new cart's identifier:
@@ -111,7 +133,7 @@ interface CartCreated {
 }
 ```
 
-## GET /carts/{id} - Checkout page
+### GET /carts/{id} - Checkout page
 
 ### Checkout
 
@@ -128,6 +150,12 @@ POST /invoices             → create the order
 
 - Called during checkout
 - `{200}`: Successfully validated payment details
+
+```ts
+interface Payment {
+  message: string;
+}
+```
 
 ### POST /invoices - Create an order
 

@@ -44,11 +44,19 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'setup',
+      testMatch: /.*setup\.ts/,
+    },
+    {
+      name: 'chromium',
+      testIgnore: /.*setup\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
     ...(process.env.CROSS_BROWSER
       ? [
-          { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-          { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+          { name: 'firefox', testIgnore: /.*setup\.ts/, use: { ...devices['Desktop Firefox'] } },
+          { name: 'webkit', testIgnore: /.*setup\.ts/, use: { ...devices['Desktop Safari'] } },
         ]
       : []),
 

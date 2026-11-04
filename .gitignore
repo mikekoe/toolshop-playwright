@@ -9,3 +9,4 @@ node_modules/
 .env
 .DS_store
 auth.json
+playwright/.auth
