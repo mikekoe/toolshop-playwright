@@ -56,8 +56,8 @@ export default defineConfig({
     },
     ...(process.env.CROSS_BROWSER
       ? [
-          { name: 'firefox', testIgnore: /.*setup\.ts/, dependencies: ['setup'], use: { ...devices['Desktop Firefox'] } },
-          { name: 'webkit', testIgnore: /.*setup\.ts/, dependencies: ['setup'], use: { ...devices['Desktop Safari'] } },
+          { name: 'firefox', testIgnore: /.*setup\.ts/, use: { ...devices['Desktop Firefox'] } },
+          { name: 'webkit', testIgnore: /.*setup\.ts/, use: { ...devices['Desktop Safari'] } },
         ]
       : []),
 
