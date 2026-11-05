@@ -17,6 +17,7 @@ import { faker } from '@faker-js/faker';
 import { randomUUID } from 'crypto';
 import path from 'path';
 import dotenv from 'dotenv';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -118,9 +119,16 @@ setup('register, log in, and save a logged-in browser state', async ({ page, req
   // Step 5: save the full storageState (cookies + localStorage) for other tests.
   await page.context().storageState({ path: AUTH_FILE });
 
-  // Sanity-check: reload and confirm the frontend treats us as logged in.
-  // We assert on a stable, data-test-anchored signal — the sign-in link
-  // disappears from the nav when a session is active.
+  const CREDENTIALS_FILE = path.resolve('playwright/.auth/credentials.json');
+
+  const credentials = {
+    email: customer.email,
+    password: customer.password,
+    userId: registered.id,
+    generatedAt: new Date().toISOString(),
+  };
+  fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2), 'utf-8');
+
   await page.goto(FRONTEND_BASE_URL);
   await expect(page.getByTestId('nav-sign-in')).toBeHidden();
 
