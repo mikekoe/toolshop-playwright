@@ -1,18 +1,23 @@
 import dotenv from 'dotenv';
+import fs from 'fs';
 import { defineConfig, devices } from '@playwright/test';
 
-dotenv.config();
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ override: true });
 
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
+const STORAGE_STATE_PATH = 'playwright/.auth/customer.json';
+
+/**
+ * Use the saved storageState if the setup project wrote one (local runs).
+ * Fall back to an empty logged-out state otherwise (CI, where setup skips
+ * because Toolshop blocks shared runner IPs). See README > Known limitations.
+ */
+const storageState = fs.existsSync(STORAGE_STATE_PATH)
+  ? STORAGE_STATE_PATH
+  : { cookies: [], origins: [] };
+
 export default defineConfig({
   testDir: './tests',
   /* Run tests in files in parallel */
@@ -25,10 +30,8 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-
   expect: {
     timeout: 10_000,
   },
@@ -52,7 +55,7 @@ export default defineConfig({
       name: 'chromium',
       testIgnore: /.*setup\.ts/,
       dependencies: ['setup'],
-      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/customer.json' },
+      use: { ...devices['Desktop Chrome'], storageState },
     },
     ...(process.env.CROSS_BROWSER
       ? [
@@ -60,32 +63,5 @@ export default defineConfig({
           { name: 'webkit', testIgnore: /.*setup\.ts/, use: { ...devices['Desktop Safari'] } },
         ]
       : []),
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
   ],
-
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
 });

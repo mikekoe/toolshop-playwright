@@ -1,6 +1,6 @@
 /**
  * Auth setup — runs once per test run as a Playwright setup project.
- 
+ *   See README > Known limitations for the full story.
  */
 
 import { test as setup, expect } from '@playwright/test';
@@ -16,8 +16,6 @@ const API_BASE_URL = process.env.API_BASE_URL ?? 'https://api.practicesoftwarete
 const FRONTEND_BASE_URL = process.env.BASE_URL ?? 'https://practicesoftwaretesting.com';
 const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD;
 const TEST_EMAIL_DOMAIN = process.env.TEST_EMAIL_DOMAIN ?? 'example.com';
-const TEST_API_EMAIL = process.env.TEST_API_EMAIL;
-const TEST_API_PASSWORD = process.env.TEST_API_PASSWORD;
 const IS_CI = Boolean(process.env.CI);
 
 // The key Angular reads from localStorage on page load.
@@ -50,21 +48,12 @@ interface RegisterResponse {
   };
 }
 
-// Preconditions — module-level so there's no conditional inside the setup body.
-if (IS_CI) {
-  if (!TEST_API_EMAIL || !TEST_API_PASSWORD) {
-    throw new Error(
-      'CI run: TEST_API_EMAIL and TEST_API_PASSWORD must be set as GitHub secrets. ' +
-        'They identify the pre-registered Toolshop account used in CI because the ' +
-        'API /users/register endpoint returns 500 for shared CI runner IPs.',
-    );
-  }
-} else {
-  if (!TEST_USER_PASSWORD) {
-    throw new Error(
-      'Local run: TEST_USER_PASSWORD must be set in .env to register a throwaway customer.',
-    );
-  }
+// Precondition — module-level so there's no conditional inside the setup body.
+// Only checked for local runs; CI skips the setup entirely.
+if (!IS_CI && !TEST_USER_PASSWORD) {
+  throw new Error(
+    'Local run: TEST_USER_PASSWORD must be set in .env to register a throwaway customer.',
+  );
 }
 
 // faker sometimes produces names with apostrophes or accents; the register
@@ -72,50 +61,44 @@ if (IS_CI) {
 const lettersOnly = (s: string): string => s.replace(/[^A-Za-z]/g, '');
 
 setup('register, log in, and save a logged-in browser state', async ({ page, request }) => {
-  let email: string;
-  let password: string;
-  let userId: string;
-  // eslint-disable-next-line playwright/no-conditional-in-test
-  if (IS_CI) {
-    // CI path: skip register, log in with the pre-registered account
-    email = TEST_API_EMAIL!;
-    password = TEST_API_PASSWORD!;
-    userId = '(pre-registered)';
-    console.log(`[auth.setup] CI run — logging in as pre-registered account ${email}`);
-  } else {
-    // Local path: register a fresh throwaway customer
-    const uniqueTag = `setup-${Date.now()}-${randomUUID().slice(0, 8)}`;
-    email = `${uniqueTag}@${TEST_EMAIL_DOMAIN}`;
-    password = TEST_USER_PASSWORD!;
+  // eslint-disable-next-line playwright/no-skipped-test
+  setup.skip(
+    IS_CI,
+    'Toolshop API rejects register from shared CI runner IPs (500) and reaps ' +
+      'pre-registered accounts too quickly to use as a workaround. ' +
+      'Auth-dependent tests run locally only. See README > Known limitations.',
+  );
 
-    const customer = {
-      first_name: lettersOnly(faker.person.firstName()) || 'Setup',
-      last_name: lettersOnly(faker.person.lastName()) || 'User',
-      dob: '1990-01-01',
-      email,
-      password,
-      phone: `080${faker.string.numeric(8)}`,
-      address: {
-        street: '12 Setup Street',
-        city: 'Lagos',
-        state: 'Lagos',
-        country: 'NG',
-        postal_code: '100001',
-        house_number: '12',
-      },
-    };
+  // Register a fresh throwaway customer via API
+  const uniqueTag = `setup-${Date.now()}-${randomUUID().slice(0, 8)}`;
+  const email = `${uniqueTag}@${TEST_EMAIL_DOMAIN}`;
+  const password = TEST_USER_PASSWORD!;
 
-    const registerResponse = await request.post(`${API_BASE_URL}/users/register`, {
-      data: customer,
-    });
-    expect(registerResponse.status(), `Register failed: ${await registerResponse.text()}`).toBe(
-      201,
-    );
-    const registered = (await registerResponse.json()) as RegisterResponse;
-    userId = registered.id;
-  }
+  const customer = {
+    first_name: lettersOnly(faker.person.firstName()) || 'Setup',
+    last_name: lettersOnly(faker.person.lastName()) || 'User',
+    dob: '1990-01-01',
+    email,
+    password,
+    phone: `080${faker.string.numeric(8)}`,
+    address: {
+      street: '12 Setup Street',
+      city: 'Lagos',
+      state: 'Lagos',
+      country: 'NG',
+      postal_code: '100001',
+      house_number: '12',
+    },
+  };
 
-  // Log in via API (both paths)
+  const registerResponse = await request.post(`${API_BASE_URL}/users/register`, {
+    data: customer,
+  });
+  expect(registerResponse.status(), `Register failed: ${await registerResponse.text()}`).toBe(201);
+  const registered = (await registerResponse.json()) as RegisterResponse;
+  const userId = registered.id;
+
+  // Log in via API to get a bearer token
   const loginResponse = await request.post(`${API_BASE_URL}/users/login`, {
     data: { email, password },
   });
@@ -123,7 +106,7 @@ setup('register, log in, and save a logged-in browser state', async ({ page, req
   const { access_token } = (await loginResponse.json()) as LoginResponse;
   expect(access_token.length).toBeGreaterThan(10);
 
-  // Open the frontend, inject the token into localStorage.
+  // Open the frontend, inject the token into localStorage
   await page.goto(FRONTEND_BASE_URL);
   await page.evaluate(
     ([key, token]) => {
@@ -132,11 +115,11 @@ setup('register, log in, and save a logged-in browser state', async ({ page, req
     [AUTH_TOKEN_KEY, access_token],
   );
 
-  // Save the full storageState (cookies + localStorage) for UI tests.
+  // Save the full storageState (cookies + localStorage) for UI tests
   fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
   await page.context().storageState({ path: AUTH_FILE });
 
-  // Save credentials for API tests to read.
+  // Save credentials for API tests to read
   const credentials = {
     email,
     password,
@@ -145,7 +128,7 @@ setup('register, log in, and save a logged-in browser state', async ({ page, req
   };
   fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2), 'utf-8');
 
-  // Sanity-check: reload and confirm the frontend treats us as logged in.
+  // Sanity-check: reload and confirm the frontend treats us as logged in
   await page.goto(FRONTEND_BASE_URL);
   await expect(page.getByTestId('nav-sign-in')).toBeHidden();
 
