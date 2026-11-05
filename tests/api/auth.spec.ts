@@ -12,7 +12,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
-dotenv.config({override: true});
+dotenv.config({ override: true });
 
 /* ------------------------------------------------------------ settings */
 

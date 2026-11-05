@@ -10,7 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 
-dotenv.config({override: true});
+dotenv.config({ override: true });
 
 const API_BASE_URL = process.env.API_BASE_URL ?? 'https://api.practicesoftwaretesting.com';
 const FRONTEND_BASE_URL = process.env.BASE_URL ?? 'https://practicesoftwaretesting.com';
