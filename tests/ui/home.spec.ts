@@ -11,6 +11,8 @@ test.describe('Home', () => {
 
   // Flow 1: a visitor arrives and sees the shop
   test.describe('Layout and product list', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
+
     test('shows the main navigation, language and banner @smoke', async ({ page }) => {
       // Assert (the page was opened in beforeEach)
       await expect(page.getByTestId('nav-home')).toContainText('Home');

@@ -51,7 +51,7 @@ export default defineConfig({
     {
       name: 'chromium',
       testIgnore: /.*setup\.ts/,
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/customer.json' },
     },
     ...(process.env.CROSS_BROWSER
       ? [

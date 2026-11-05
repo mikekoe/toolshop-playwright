@@ -249,6 +249,7 @@ async function logIn(page: Page, email: string, password: string): Promise<void>
 }
 
 /* --------------------------------------------------------------- tests */
+test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe('Authentication', () => {
   // Flow 1: a visitor reaches the login page
