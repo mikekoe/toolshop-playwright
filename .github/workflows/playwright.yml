@@ -44,11 +44,14 @@ jobs:
       - run: npm run format:check
       - run: npx tsc --noEmit
 
-  # --------------------------------------------- Smoke (PR + push to main)
+  # --------------------------------------------- Smoke (PR only — fast feedback)
+  # Runs @smoke only across 2 shards for quick developer feedback on PRs.
+  # Reports are uploaded as per-shard HTML artifacts for triage. The Live
+  # report on Pages is driven by the `full` job instead (see below).
   smoke:
     name: Smoke (${{ matrix.shard }}/${{ matrix.total_shards }})
     needs: static
-    if: github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'smoke')
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'smoke')
     timeout-minutes: 15
     runs-on: ubuntu-latest
     strategy:
@@ -79,23 +82,13 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      # Run shard. Reporter=blob writes a shard-specific .zip under blob-report/
-      # which we later merge into a single HTML report.
       - name: Run smoke tests
         env:
           CI: true
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-        run: npx playwright test --grep @smoke --shard=${{ matrix.shard }}/${{ matrix.total_shards }} --reporter=blob
+        run: npx playwright test --grep @smoke --shard=${{ matrix.shard }}/${{ matrix.total_shards }}
 
-      - name: Upload shard blob report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: blob-report-smoke-${{ matrix.shard }}
-          path: blob-report/
-          retention-days: 14
-
-      - name: Upload HTML report (per-shard, legacy)
+      - name: Upload HTML report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -111,11 +104,13 @@ jobs:
           path: test-results/
           retention-days: 14
 
-  # --------------------------------------------- Full suite (nightly)
+  # --------------------------------------------- Full suite (push to main + nightly)
+  # Runs every test across 3 shards. Emits blob reports which the
+  # `publish-report` job merges and deploys to GitHub Pages.
   full:
     name: Full suite (${{ matrix.shard }}/${{ matrix.total_shards }})
     needs: static
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full')
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full')
     timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
@@ -150,14 +145,14 @@ jobs:
         env:
           CI: true
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-        run: npx playwright test --shard=${{ matrix.shard }}/${{ matrix.total_shards }}
+        run: npx playwright test --shard=${{ matrix.shard }}/${{ matrix.total_shards }} --reporter=blob
 
-      - name: Upload HTML report
+      - name: Upload shard blob report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-full-shard-${{ matrix.shard }}
-          path: playwright-report/
+          name: blob-report-full-${{ matrix.shard }}
+          path: blob-report/
           retention-days: 14
 
       - name: Upload traces on failure
@@ -168,13 +163,14 @@ jobs:
           path: test-results/
           retention-days: 14
 
-  # --------------------------------------------- Merge shard reports + publish
-  # Downloads every smoke shard's blob report, merges into one HTML, then
-  # deploys the single unified report to GitHub Pages.
+  # --------------------------------------------- Merge full-suite reports + publish
+  # After the full job finishes on push-to-main or the nightly schedule,
+  # downloads every shard's blob, merges into one HTML, and deploys it
+  # to GitHub Pages. Runs even if some shards failed
   publish-report:
     name: Publish merged report to GitHub Pages
-    needs: smoke
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && always() && needs.smoke.result != 'skipped'
+    needs: full
+    if: always() && needs.full.result != 'skipped' && ((github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full'))
     timeout-minutes: 5
     runs-on: ubuntu-latest
     environment:
@@ -192,7 +188,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: all-blob-reports
-          pattern: blob-report-smoke-*
+          pattern: blob-report-full-*
           merge-multiple: true
 
       - name: Merge into a single HTML report

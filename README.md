@@ -55,8 +55,8 @@ impact if the flow breaks** and **likelihood of regression**.
 | **Accessibility**          | P2           | Legal and ethical risk; axe-core catches regressions that would otherwise ship                                   | 4 pages scanned against WCAG 2.0/2.1 A and AA                        |
 | **API contract**           | P2           | API changes silently break the UI and any third-party integrations; typed responses make breakage loud           | Login, token validation, error-shape documentation                   |
 | **Contact form**           | P3           | Support channel; failure is annoying but not revenue-blocking                                                    | Form render, validation                                              |
-| **Admin / operations**     | out of scope | Customer-facing portfolio; admin flows add no CV-relevant signal for a QA role                                   | —                                                                    |
-| **Performance / load**     | out of scope | Would require a different toolchain (k6, Artillery); out of Week 4 budget                                        | —                                                                    |
+| **Admin / operations**     | out of scope | Customer-facing portfolio; admin flows                                                                           | —                                                                    |
+| **Performance / load**     | out of scope | Would require a different toolchain (k6, JMeter)                                                                 | —                                                                    |
 
 ### Why the hybrid test exists
 
@@ -93,7 +93,7 @@ in the suite that spans both.
 ## Setup
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/mikekoe/toolshop-playwright.git
 cd toolshop-playwright
 npm install
 npx playwright install chromium
