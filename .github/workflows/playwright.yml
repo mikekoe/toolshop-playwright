@@ -6,7 +6,7 @@ on:
   push:
     branches: [main, master]
   schedule:
-    - cron: '0 2 * * *' # every day at 2am UTC
+    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       scope:
@@ -21,6 +21,12 @@ on:
 concurrency:
   group: playwright-${{ github.ref }}
   cancel-in-progress: true
+
+# Needed for the publish-report job to deploy to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   # --------------------------------------------- Static checks (always)
@@ -152,3 +158,34 @@ jobs:
           name: playwright-traces-full-shard-${{ matrix.shard }}
           path: test-results/
           retention-days: 14
+
+  # --------------------------------------------- Publish latest report to Pages
+  # Runs after smoke completes on main. Downloads shard-1's HTML report
+  # (representative of the latest run) and publishes it to GitHub Pages.
+  publish-report:
+    name: Publish report to GitHub Pages
+    needs: smoke
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && always() && needs.smoke.result != 'skipped'
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download shard-1 report
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report-smoke-shard-1
+          path: ./report
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./report
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
