@@ -1,5 +1,7 @@
 # Toolshop Playwright Suite
 
+[![Playwright Tests](https://github.com/mikekoe/toolshop-playwright/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/mikekoe/toolshop-playwright/actions/workflows/playwright.yml)
+
 End-to-end UI, API, hybrid, and accessibility test suite for
 [practicesoftwaretesting.com](https://practicesoftwaretesting.com), built with
 Playwright and TypeScript.
@@ -33,9 +35,9 @@ every intentional trade-off.
 
 - Playwright + TypeScript
 - `@axe-core/playwright` for accessibility scanning
-- `@faker-js/faker` for throwaway test data
+- `@faker-js/faker` for test data
 - `dotenv` for local env vars (`override: true` so shell exports don't shadow)
-- GitHub Actions for CI
+- GitHub Actions for CI, with Docker as an alternative runtime
 
 ## Prerequisites
 
@@ -92,6 +94,54 @@ npx playwright test --ui
 npx playwright show-report
 ```
 
+## Test tagging conventions
+
+Tests are tagged by role so CI can run the right subset at the right time.
+
+| Tag         | Purpose                                                                                                                           | Where it runs                          |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `@smoke`    | Fast happy-path checks — one representative test per feature area (login, home, cart, products, categories, contact, API, hybrid) | Every PR and every push to main        |
+| `@hybrid`   | Tests that combine API and UI                                                                                                     | PRs, pushes, and the nightly full run  |
+| `@a11y`     | Accessibility checks with `@axe-core/playwright`                                                                                  | Nightly full run                       |
+| `@external` | Tests that depend on third-party services (e.g. Google sign-in)                                                                   | Nightly full run — kept out of PR runs |
+
+Run a subset locally:
+
+```bash
+npx playwright test --grep @smoke          # ~16 tests, ~90s
+npx playwright test --grep @a11y           # 4 accessibility scans
+npx playwright test --grep @hybrid         # 1 hybrid order test
+npx playwright test --grep-invert @external  # exclude third-party deps
+```
+
+## Docker
+
+The project includes a `Dockerfile` based on Microsoft's official Playwright
+image, so the suite can run on any machine with Docker — no Node or browser
+install required.
+
+```bash
+# Build once (pins Playwright to the version in package.json)
+docker build -t toolshop-playwright .
+
+# Run the full suite
+docker run --rm \
+  -e TEST_USER_PASSWORD=your-password \
+  -v "$(pwd)/playwright-report:/app/playwright-report" \
+  toolshop-playwright
+
+# Run only smoke tests
+docker run --rm \
+  -e TEST_USER_PASSWORD=your-password \
+  -v "$(pwd)/playwright-report:/app/playwright-report" \
+  toolshop-playwright \
+  npx playwright test --grep @smoke
+```
+
+The volume mount pulls the HTML report out of the container into the local
+`playwright-report/` folder. Bump the `FROM` line in the Dockerfile when
+upgrading `@playwright/test`.
+
 ## Project structure
 
 ```
@@ -122,6 +172,7 @@ toolshop-playwright/
 ├── .github/
 │   └── workflows/
 │       └── playwright.yml             # CI workflow
+├── Dockerfile
 ├── playwright.config.ts
 ├── .env.example
 └── README.md
@@ -189,7 +240,7 @@ workers: process.env.CI ? 1 : undefined;
 
 Serial workers in CI are a deliberate trade-off — Toolshop rate-limits
 aggressive parallel requests from the same IP. Local runs use default
-parallelism.
+parallelism. CI gets parallelism back via sharding across jobs (below).
 
 ### Dynamic product pick
 
@@ -231,12 +282,50 @@ is fixed upstream, removing the fixme re-enables the test.
 
 ## CI/CD
 
-GitHub Actions runs the full chromium suite on every push and pull request
-against `main`. The setup project skips in CI (see Known limitations); every
-test that depends on credentials skips with it. The remaining tests run and
-must pass.
+Three jobs run from `.github/workflows/playwright.yml`:
 
-Workflow: `.github/workflows/playwright.yml`
+| Job      | Trigger                                            | What it does                                                                                          |
+| -------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `static` | Every run                                          | Lint, format check, TypeScript check. Blocks the other jobs — tests don't run if static fails.        |
+| `smoke`  | PR, push to main, manual dispatch (scope=smoke)    | Runs `--grep @smoke` across 2 parallel shards. Typical runtime: ~3–4 min warm cache, ~10–12 min cold. |
+| `full`   | Nightly at 02:00 UTC, manual dispatch (scope=full) | Runs every test across 3 parallel shards. Typical runtime: ~10–15 min warm.                           |
+
+The nightly run catches regressions from upstream Toolshop changes between PR
+runs. Shard counts are tuned for the suite size — 2 shards keep each smoke
+run under 90 seconds; 3 shards keep full-suite wall time under 15 minutes.
+
+### Manual dispatch
+
+From the Actions tab, select the Playwright Tests workflow, click "Run
+workflow", and pick `smoke` or `full`.
+
+### Browser caching
+
+Playwright browsers are cached at `~/.cache/ms-playwright`, keyed on
+`package-lock.json`. Cold cache runs take ~12 min for the install step;
+warm cache runs take ~30 seconds. The cache invalidates automatically on
+`npm install` of a new Playwright version.
+
+### Concurrency
+
+The workflow uses a concurrency group per ref. When a new commit is pushed
+to a branch with an in-flight run, the in-flight run cancels. This saves CI
+minutes without losing meaningful signal — only the latest commit's result
+matters.
+
+### Downloading reports
+
+Every CI run uploads its HTML report as an artifact. On any completed run,
+scroll to the "Artifacts" section at the bottom. Artifact names follow this
+pattern:
+
+- `playwright-report-smoke-shard-{1,2}` — smoke shard HTML reports
+- `playwright-report-full-shard-{1,2,3}` — full suite shard HTML reports
+- `playwright-traces-{job}-shard-{n}` — only present on failure; contains
+  traces to open with `npx playwright show-trace`
+
+Download the zip, extract, and open `index.html` in a browser. Reports are
+retained for 14 days.
 
 ## Known limitations
 
@@ -282,11 +371,12 @@ testing, each tracked in the corresponding test file or doc:
 ## npm scripts
 
 ```bash
-npm run format      # prettier write
-npm run lint        # eslint check
-npm run typecheck   # tsc --noEmit
+npm run format        # prettier write
+npm run format:check  # prettier check (no writes)
+npm run lint          # eslint check
+npm run typecheck     # tsc --noEmit
 ```
 
 ## Author
 
-Michael Adeyeye — QA Testing Engineer, Lagos.
+Michael Adeyeye — QA Testing Engineer
