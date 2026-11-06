@@ -99,6 +99,9 @@ async function pickInStockProduct(request: APIRequestContext): Promise<Product> 
  * because the Toolshop setup project registers Lagos-based customers.
  */
 function generateBillingAddress() {
+  // These exact values were empirically discovered to pass Toolshop's
+  // undocumented /invoices address validation. The server appears to check
+  // against a whitelist of seed addresses rather than doing real geocoding,
   return {
     billing_street: 'Paucek Mills',
     billing_city: 'Mattburgh',

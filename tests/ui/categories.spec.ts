@@ -39,7 +39,7 @@ test.describe('Categories', () => {
       }
     });
 
-    test('filtering by the Pliers category narrows the list', async ({ page }) => {
+    test('filtering by the Pliers category narrows the list @smoke', async ({ page }) => {
       // Arrange
       const products = page.getByTestId('product-name');
       const unfilteredCount = await products.count();

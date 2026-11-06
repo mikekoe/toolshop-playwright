@@ -161,6 +161,7 @@ interface Payment {
 
 - `{201}` - Successfully created an order
 - Called after `{/payment/check}` succeeds
+- The server appears to use an allowlist from seed data rather than real geocoding.
 
 ### GET /Invoices - List the current user's invoices
 
