@@ -2,6 +2,12 @@
 
 [![Playwright Tests](https://github.com/mikekoe/toolshop-playwright/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/mikekoe/toolshop-playwright/actions/workflows/playwright.yml)
 
+**At a glance:** 65 tests across UI, API, hybrid, and accessibility layers •
+Sharded CI reduces feedback time from ~15 min to ~1 min • Typed API
+responses • CI-aware auth setup that gracefully degrades on blocked runner
+IPs • Documented upstream findings: 3 WCAG violations and 1 undocumented
+API validation rule • **[Live report](https://mikekoe.github.io/toolshop-playwright/)**.
+
 End-to-end UI, API, hybrid, and accessibility test suite for
 [practicesoftwaretesting.com](https://practicesoftwaretesting.com), built with
 Playwright and TypeScript.
@@ -30,6 +36,52 @@ every intentional trade-off.
 - **CI-aware config** — the auth setup project skips on GitHub Actions runners
   (Toolshop rejects shared CI IPs); tests that depend on it skip with a
   documented reason rather than fabricate green.
+
+## Live report
+
+The latest smoke suite's HTML report from `main` is published to GitHub Pages:
+
+**[https://mikekoe.github.io/toolshop-playwright/](https://mikekoe.github.io/toolshop-playwright/)**
+
+Open it to see every test that ran on the last push: status, duration,
+error traces for any failure, and the full test tree with timing. The page
+updates automatically on every push to `main`.
+
+## Scope and risk-based testing
+
+Toolshop has ~15 distinct user-facing flows; testing all of them exhaustively
+isn't the goal of a portfolio suite. Coverage is prioritized by **business
+impact if the flow breaks** and **likelihood of regression**.
+
+| Area                       | Priority     | Why                                                                                                              | Tests                                                                |
+| -------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Authentication**         | P1           | Failure here locks every logged-in customer out of the site and gatekeeps every other test                       | Login, registration, password rules, forgot-password                 |
+| **Add to cart & checkout** | P1           | Direct revenue impact — if a customer can't add a product or complete an order, every dollar of sales is at risk | Cart, product detail, hybrid order (cart → item → payment → invoice) |
+| **Product discovery**      | P2           | Search and category filtering drive conversion; breaks cost sales but don't block known-item purchases           | Home search, sorting, pagination, category filter                    |
+| **Accessibility**          | P2           | Legal and ethical risk; axe-core catches regressions that would otherwise ship                                   | 4 pages scanned against WCAG 2.0/2.1 A and AA                        |
+| **API contract**           | P2           | API changes silently break the UI and any third-party integrations; typed responses make breakage loud           | Login, token validation, error-shape documentation                   |
+| **Contact form**           | P3           | Support channel; failure is annoying but not revenue-blocking                                                    | Form render, validation                                              |
+| **Admin / operations**     | out of scope | Customer-facing portfolio; admin flows add no CV-relevant signal for a QA role                                   | —                                                                    |
+| **Performance / load**     | out of scope | Would require a different toolchain (k6, Artillery); out of Week 4 budget                                        | —                                                                    |
+
+### Why the hybrid test exists
+
+Every other test operates at one layer (UI or API). The hybrid test is the
+one that catches **contract drift between them** — if the API changes the
+`invoice_number` format but the UI table still parses the old shape, no
+single-layer test fails. The hybrid one does. That's why it's the only test
+in the suite that spans both.
+
+### Honest coverage gaps
+
+- Payment flows beyond cash-on-delivery (credit card, PayPal) aren't tested;
+  the sandbox doesn't provide safe test instruments.
+- Cross-browser is implemented but not run by default (Firefox + WebKit are
+  gated behind `CROSS_BROWSER=true`) because Toolshop rate-limits aggressive
+  traffic from one IP and three browsers in CI would hit that limit.
+- The full UI checkout flow is only partially covered — the hybrid test
+  exercises the API side and cart tests exercise the UI side, but a true
+  end-to-end UI checkout is blocked by Cloudflare on the register path.
 
 ## Tech stack
 
@@ -108,9 +160,9 @@ Tests are tagged by role so CI can run the right subset at the right time.
 Run a subset locally:
 
 ```bash
-npx playwright test --grep @smoke          # ~16 tests, ~90s
-npx playwright test --grep @a11y           # 4 accessibility scans
-npx playwright test --grep @hybrid         # 1 hybrid order test
+npx playwright test --grep @smoke            # ~16 tests, ~90s
+npx playwright test --grep @a11y             # 4 accessibility scans
+npx playwright test --grep @hybrid           # 1 hybrid order test
 npx playwright test --grep-invert @external  # exclude third-party deps
 ```
 
@@ -282,13 +334,14 @@ is fixed upstream, removing the fixme re-enables the test.
 
 ## CI/CD
 
-Three jobs run from `.github/workflows/playwright.yml`:
+Four jobs run from `.github/workflows/playwright.yml`:
 
-| Job      | Trigger                                            | What it does                                                                                          |
-| -------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `static` | Every run                                          | Lint, format check, TypeScript check. Blocks the other jobs — tests don't run if static fails.        |
-| `smoke`  | PR, push to main, manual dispatch (scope=smoke)    | Runs `--grep @smoke` across 2 parallel shards. Typical runtime: ~3–4 min warm cache, ~10–12 min cold. |
-| `full`   | Nightly at 02:00 UTC, manual dispatch (scope=full) | Runs every test across 3 parallel shards. Typical runtime: ~10–15 min warm.                           |
+| Job              | Trigger                                            | What it does                                                                                          |
+| ---------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `static`         | Every run                                          | Lint, format check, TypeScript check. Blocks the other jobs — tests don't run if static fails.        |
+| `smoke`          | PR, push to main, manual dispatch (scope=smoke)    | Runs `--grep @smoke` across 2 parallel shards. Typical runtime: ~3–4 min warm cache, ~10–12 min cold. |
+| `full`           | Nightly at 02:00 UTC, manual dispatch (scope=full) | Runs every test across 3 parallel shards. Typical runtime: ~10–15 min warm.                           |
+| `publish-report` | Push to main, after `smoke` succeeds               | Downloads shard-1's HTML report and publishes it to GitHub Pages at the Live report URL above.        |
 
 The nightly run catches regressions from upstream Toolshop changes between PR
 runs. Shard counts are tuned for the suite size — 2 shards keep each smoke
@@ -326,6 +379,9 @@ pattern:
 
 Download the zip, extract, and open `index.html` in a browser. Reports are
 retained for 14 days.
+
+For the latest main-branch smoke report, use the Live report link at the top
+of this README instead — no download needed.
 
 ## Known limitations
 
@@ -379,4 +435,4 @@ npm run typecheck     # tsc --noEmit
 
 ## Author
 
-Michael Adeyeye — QA Testing Engineer
+Michael Adeyeye — QA Testing Engineer, Lagos.
