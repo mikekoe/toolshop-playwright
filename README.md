@@ -2,12 +2,6 @@
 
 [![Playwright Tests](https://github.com/mikekoe/toolshop-playwright/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/mikekoe/toolshop-playwright/actions/workflows/playwright.yml)
 
-**At a glance:** 65 tests across UI, API, hybrid, and accessibility layers •
-Sharded CI reduces feedback time from ~15 min to ~1 min • Typed API
-responses • CI-aware auth setup that gracefully degrades on blocked runner
-IPs • Documented upstream findings: 3 WCAG violations and 1 undocumented
-API validation rule • **[Live report](https://mikekoe.github.io/toolshop-playwright/)**.
-
 End-to-end UI, API, hybrid, and accessibility test suite for
 [practicesoftwaretesting.com](https://practicesoftwaretesting.com), built with
 Playwright and TypeScript.
