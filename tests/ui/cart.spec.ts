@@ -71,7 +71,7 @@ test.describe('Cart', () => {
 
   // Flow 2: the visitor changes what is in the cart
   test.describe('Changing items', () => {
-    test('updates the quantity and the line price', async ({ page }) => {
+    test('updates the quantity and the line price @smoke', async ({ page }) => {
       // Arrange: product in the cart, quantity 3
       await addProductToCart(page, STANDARD_PRODUCT, 2);
       await openCart(page);
@@ -107,7 +107,7 @@ test.describe('Cart', () => {
       await expect(page.getByText('Product quantity updated.')).toBeVisible();
     });
 
-    test('removes one product and keeps the other', async ({ page }) => {
+    test('removes one product and keeps the other @smoke', async ({ page }) => {
       // Arrange: two products in the cart
       await addProductToCart(page, BOLT_CUTTERS);
       await addProductToCart(page, MINI_SCREWDRIVER);
@@ -156,7 +156,7 @@ test.describe('Cart', () => {
       }).toPass();
     });
 
-    test('the cart total equals the sum of the line prices', async ({ page }) => {
+    test('the cart total equals the sum of the line prices @smoke', async ({ page }) => {
       // Arrange: two non-ECO products (the recording showed no discount for these)
       await addProductToCart(page, BOLT_CUTTERS, 1);
       await addProductToCart(page, MINI_SCREWDRIVER);
@@ -187,7 +187,9 @@ test.describe('Cart', () => {
       await expect(page.getByTestId('cart-total')).toBeVisible();
     });
 
-    test('the eco discount is 5% of the subtotal and the total follows', async ({ page }) => {
+    test('the eco discount is 5% of the subtotal and the total follows @smoke', async ({
+      page,
+    }) => {
       // Arrange
       await addProductToCart(page, ECO_PRODUCT, 2);
       await openCart(page);

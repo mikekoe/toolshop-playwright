@@ -55,7 +55,7 @@ test.describe('Products', () => {
       });
     }
 
-    test('shows a specifications section', async ({ page }) => {
+    test('shows a specifications section @smoke', async ({ page }) => {
       // Arrange + Act
       await openProduct(page, SPECS_PRODUCT);
 
@@ -66,7 +66,7 @@ test.describe('Products', () => {
 
   // Flow 2: the visitor looks for eco-friendly products
   test.describe('Eco information', () => {
-    test('an ECO product shows the eco badge and the CO2 rating', async ({ page }) => {
+    test('an ECO product shows the eco badge and the CO2 rating @smoke', async ({ page }) => {
       // Arrange + Act
       await openProduct(page, ECO_PRODUCT);
 
