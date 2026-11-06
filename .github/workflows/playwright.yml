@@ -22,7 +22,6 @@ concurrency:
   group: playwright-${{ github.ref }}
   cancel-in-progress: true
 
-# Needed for the publish-report job to deploy to GitHub Pages
 permissions:
   contents: read
   pages: write
@@ -80,13 +79,23 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
+      # Run shard. Reporter=blob writes a shard-specific .zip under blob-report/
+      # which we later merge into a single HTML report.
       - name: Run smoke tests
         env:
           CI: true
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-        run: npx playwright test --grep @smoke --shard=${{ matrix.shard }}/${{ matrix.total_shards }}
+        run: npx playwright test --grep @smoke --shard=${{ matrix.shard }}/${{ matrix.total_shards }} --reporter=blob
 
-      - name: Upload HTML report
+      - name: Upload shard blob report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-smoke-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 14
+
+      - name: Upload HTML report (per-shard, legacy)
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -159,11 +168,11 @@ jobs:
           path: test-results/
           retention-days: 14
 
-  # --------------------------------------------- Publish latest report to Pages
-  # Runs after smoke completes on main. Downloads shard-1's HTML report
-  # (representative of the latest run) and publishes it to GitHub Pages.
+  # --------------------------------------------- Merge shard reports + publish
+  # Downloads every smoke shard's blob report, merges into one HTML, then
+  # deploys the single unified report to GitHub Pages.
   publish-report:
-    name: Publish report to GitHub Pages
+    name: Publish merged report to GitHub Pages
     needs: smoke
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && always() && needs.smoke.result != 'skipped'
     timeout-minutes: 5
@@ -172,11 +181,22 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download shard-1 report
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Download all blob reports
         uses: actions/download-artifact@v4
         with:
-          name: playwright-report-smoke-shard-1
-          path: ./report
+          path: all-blob-reports
+          pattern: blob-report-smoke-*
+          merge-multiple: true
+
+      - name: Merge into a single HTML report
+        run: npx playwright merge-reports --reporter html ./all-blob-reports
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -184,7 +204,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./report
+          path: ./playwright-report
 
       - name: Deploy to GitHub Pages
         id: deployment

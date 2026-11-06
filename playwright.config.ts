@@ -30,7 +30,7 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: process.env.CI ? 'blob' : 'html',
+  reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   expect: {
     timeout: 10_000,
@@ -59,8 +59,18 @@ export default defineConfig({
     },
     ...(process.env.CROSS_BROWSER
       ? [
-          { name: 'firefox', testIgnore: /.*setup\.ts/, use: { ...devices['Desktop Firefox'] } },
-          { name: 'webkit', testIgnore: /.*setup\.ts/, use: { ...devices['Desktop Safari'] } },
+          {
+            name: 'firefox',
+            testIgnore: /.*setup\.ts/,
+            dependencies: ['setup'],
+            use: { ...devices['Desktop Firefox'], storageState },
+          },
+          {
+            name: 'webkit',
+            testIgnore: /.*setup\.ts/,
+            dependencies: ['setup'],
+            use: { ...devices['Desktop Safari'], storageState },
+          },
         ]
       : []),
   ],
