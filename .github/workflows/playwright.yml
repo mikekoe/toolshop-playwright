@@ -169,7 +169,10 @@ jobs:
     name: Publish merged report to GitHub Pages
     needs: smoke
     if: always() && needs.smoke.result != 'skipped' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    timeout-minutes: 5
+    # Bumped from 5 to 10 minutes: downloading 2 shard blobs + merging +
+    # uploading a larger merged HTML + waiting for Pages propagation can
+    # push past 5 min as the smoke suite grows.
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     environment:
       name: github-pages
