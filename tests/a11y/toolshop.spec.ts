@@ -4,13 +4,6 @@
  * Runs axe-core against four key pages and asserts no critical or serious
  * violations. Minor and moderate issues are reported in the HTML report
  * but don't fail the test.
- *
- * Toolshop is a third-party demo site we don't control. When a scan finds
- * genuine violations we can't fix at source, the affected test is marked
- * `test.fixme` with a comment pointing to the specific rule and to
- * docs/axe-findings.md. Treat each fixme as a suspected defect worth
- * reporting upstream.
- *
  */
 
 import { test, expect } from '@playwright/test';
@@ -67,7 +60,9 @@ test.describe('Accessibility (axe-core/playwright)', () => {
   //    visible text (WCAG 2.5.3, rule: label-content-name-mismatch).
   // 2. [serious] Sidebar filter <ul> elements wrap <fieldset> directly instead of
 
-  test.fixme('the home page has no critical or serious violations @a11y', async ({ page }) => {
+  test.fixme('the home page has no critical or serious violations @a11y @smoke', async ({
+    page,
+  }) => {
     // Arrange
     await page.goto('/');
     await expect(page.getByTestId('product-name').first()).toBeVisible();
@@ -90,7 +85,9 @@ test.describe('Accessibility (axe-core/playwright)', () => {
   //    the home page.
   // See docs/axe-findings.md for details and reproduction.
   // eslint-disable-next-line playwright/no-skipped-test
-  test.fixme('the login page has no critical or serious violations @a11y', async ({ page }) => {
+  test.fixme('the login page has no critical or serious violations @a11y @smoke', async ({
+    page,
+  }) => {
     // Arrange
     await page.goto('/auth/login');
     await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
@@ -108,7 +105,9 @@ test.describe('Accessibility (axe-core/playwright)', () => {
   // SUSPECTED DEFECT on Toolshop contact page:
   // Site-wide [serious] #language dropdown label-content-name-mismatch issue
 
-  test.fixme('the contact page has no critical or serious violations @a11y', async ({ page }) => {
+  test.fixme('the contact page has no critical or serious violations @a11y @smoke', async ({
+    page,
+  }) => {
     // Arrange
     await page.goto('/contact');
     await expect(page.getByRole('heading', { name: /contact/i })).toBeVisible();
@@ -127,8 +126,7 @@ test.describe('Accessibility (axe-core/playwright)', () => {
   // Site-wide [serious] #language dropdown label-content-name-mismatch issue
   // (WCAG 2.5.3). Captured here for page-level coverage even though it's not
   // product-specific. See docs/axe-findings.md.
-  // eslint-disable-next-line playwright/no-skipped-test
-  test.fixme('a product detail page has no critical or serious violations @a11y', async ({
+  test.fixme('a product detail page has no critical or serious violations @a11y @smoke', async ({
     page,
   }) => {
     // Arrange: open the first product on the home page

@@ -31,7 +31,7 @@ test.describe('Home', () => {
       await expect(page.getByTestId('search-query')).toBeEmpty();
     });
 
-    test('the cart link appears once a product is added', async ({ page }) => {
+    test('the cart link appears once a product is added @smoke', async ({ page }) => {
       // Arrange: a new visitor has an empty cart, and the header shows no cart link
       await expect(page.getByTestId('nav-cart')).toHaveCount(0);
 
@@ -62,7 +62,7 @@ test.describe('Home', () => {
       await expect(page.getByTestId('product-name')).not.toHaveCount(0);
     });
 
-    test('moves to the next page of products', async ({ page }) => {
+    test('moves to the next page of products @smoke', async ({ page }) => {
       // Arrange: remember the first product on page 1
       const firstProduct = page.getByTestId('product-name').first();
       const firstOnPageOne = (await firstProduct.textContent())?.trim();
@@ -134,7 +134,7 @@ test.describe('Home', () => {
 
   // Flow 3: the visitor changes the order of the list
   test.describe('Sort', () => {
-    test('sorting by name Z-A orders the list descending', async ({ page }) => {
+    test('sorting by name Z-A orders the list descending @smoke', async ({ page }) => {
       // Arrange
       const products = page.getByTestId('product-name');
 
@@ -189,7 +189,7 @@ test.describe('Home', () => {
       await expect(page.getByTestId('quantity')).toHaveValue('1');
     });
 
-    test('the increase button raises the quantity', async ({ page }) => {
+    test('the increase button raises the quantity @smoke', async ({ page }) => {
       // Act: three clicks (1 -> 4)
       await page.getByTestId('increase-quantity').click({ clickCount: 3 });
 

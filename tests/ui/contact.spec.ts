@@ -53,7 +53,7 @@ test.describe('Contact', () => {
       await expect(page.getByTestId('contact-submit')).toBeVisible();
     });
 
-    test('the subject list offers every expected choice', async ({ page }) => {
+    test('the subject list offers every expected choice @smoke', async ({ page }) => {
       // Assert
       for (const subject of SUBJECTS) {
         await expect(page.getByTestId('subject')).toContainText(subject);
@@ -63,7 +63,7 @@ test.describe('Contact', () => {
 
   // Flow 2: the visitor submits the form without filling it in
   test.describe('Validation', () => {
-    test('submitting an empty form does not send the message', async ({ page }) => {
+    test('submitting an empty form does not send the message @smoke', async ({ page }) => {
       // Act
       await page.getByTestId('contact-submit').click();
 
@@ -76,7 +76,7 @@ test.describe('Contact', () => {
 
   // Flow 3: the visitor sends a valid message
   test.describe('Sending a message', () => {
-    test.fixme('a valid message is sent and a confirmation is shown', async ({ page }) => {
+    test.fixme('a valid message is sent and a confirmation is shown @smoke', async ({ page }) => {
       // Arrange
       const contact = newContactMessage();
       await page.getByTestId('first-name').fill(contact.firstName);
@@ -91,7 +91,7 @@ test.describe('Contact', () => {
       await expect(page.getByRole('alert')).toBeVisible();
     });
 
-    test.fixme('a valid message with an attachment is sent', async ({ page }) => {
+    test.fixme('a valid message with an attachment is sent @smoke', async ({ page }) => {
       // Arrange: the attachment is created in memory, never a real file from your computer
       const contact = newContactMessage();
       await page.getByTestId('first-name').fill(contact.firstName);

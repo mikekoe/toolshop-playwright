@@ -1,6 +1,6 @@
 /**
  * API tests for the Toolshop authentication endpoints.
- 
+ *
  * See README > Known limitations.
  */
 
@@ -66,7 +66,7 @@ interface UnauthorizedError {
 /* --------------------------------------------------------------- tests */
 
 test.describe('API: Authentication', () => {
-  test('POST /users/login with wrong credentials returns 401', async ({ request }) => {
+  test('POST /users/login with wrong credentials returns 401 @smoke', async ({ request }) => {
     // Act
     const response = await request.post(`${API_BASE_URL}/users/login`, {
       data: {
@@ -134,7 +134,7 @@ test.describe('API: Authentication', () => {
     expect(Object.keys(user).length).toBeGreaterThan(0);
   });
 
-  test('GET /users/me without a token returns 401', async ({ request }) => {
+  test('GET /users/me without a token returns 401 @smoke', async ({ request }) => {
     // Act
     const response = await request.get(`${API_BASE_URL}/users/me`);
 

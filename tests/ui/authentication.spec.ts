@@ -359,7 +359,7 @@ test.describe('Authentication', () => {
       );
     });
 
-    test('login with a wrong password is rejected', async ({ page }) => {
+    test('login with a wrong password is rejected @smoke', async ({ page }) => {
       // Arrange
       await page.goto('/auth/login');
 
@@ -374,7 +374,7 @@ test.describe('Authentication', () => {
 
   // Flow 4: a customer forgot the password
   test.describe('Forgot password', () => {
-    test('the forgot password link opens its page', async ({ page }) => {
+    test('the forgot password link opens its page @smoke', async ({ page }) => {
       // Arrange
       await page.goto('/auth/login');
 
@@ -386,7 +386,7 @@ test.describe('Authentication', () => {
       await expect(page.getByTestId('forgot-password-submit')).toBeVisible();
     });
 
-    test.fixme('requesting a reset shows a confirmation', async ({ page }) => {
+    test.fixme('requesting a reset shows a confirmation @smoke', async ({ page }) => {
       // Arrange
       await page.goto('/auth/login');
       await page.getByTestId('forgot-password-link').click();

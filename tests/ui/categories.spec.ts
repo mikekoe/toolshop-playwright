@@ -18,7 +18,7 @@ test.describe('Categories', () => {
   // Flow 1: the visitor browses through the Categories menu in the header
   test.describe('Categories menu', () => {
     for (const { label, testId } of MENU_ITEMS) {
-      test(`choosing ${label} from the menu opens that category`, async ({ page }) => {
+      test(`choosing ${label} from the menu opens that category @smoke`, async ({ page }) => {
         // Act
         await page.getByTestId('nav-categories').click();
         await page.getByTestId(testId).click();
@@ -32,7 +32,7 @@ test.describe('Categories', () => {
 
   // Flow 2: the visitor narrows the list with the category filter in the sidebar
   test.describe('Category filter', () => {
-    test('the sidebar lists the Hand Tools sub-categories', async ({ page }) => {
+    test('the sidebar lists the Hand Tools sub-categories @smoke', async ({ page }) => {
       // Assert: VERIFY that these labels are real checkbox names
       for (const name of HAND_TOOL_SUBCATEGORIES) {
         await expect(page.getByRole('checkbox', { name, exact: true })).toBeVisible();
